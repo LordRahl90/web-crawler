@@ -102,6 +102,25 @@ func TestExtractLinks(t *testing.T) {
 	assert.Len(t, links, 4)
 }
 
+func TestExtractLinks_ForwardSlash(t *testing.T) {
+	ctx := context.Background()
+	link := "https://start.url/abc"
+
+	defer mockHttp(t, link, "forward.html")()
+
+	cs := New(link, destPath)
+	require.NotNil(t, cs)
+
+	res, err := cs.Crawl(ctx, link)
+	require.Equal(t, http.StatusOK, res.StatusCode)
+	require.NoError(t, err)
+	assert.NotEmpty(t, res)
+
+	links, err := cs.ExtractLinks(ctx, res.Body)
+	require.NoError(t, err)
+	assert.Len(t, links, 3)
+}
+
 func TestValidLink(t *testing.T) {
 	path := "https://go.dev/doc"
 	cs := New(path, destPath)
@@ -176,6 +195,18 @@ func TestProcess(t *testing.T) {
 	links, err := cs.Process(ctx, link)
 	require.NoError(t, err)
 	require.Len(t, links, 2)
+}
+
+func TestProcess_ForwardSlash(t *testing.T) {
+	ctx := context.Background()
+	link := "https://start.url/abc"
+	cs := New("https://start.url/abc", destPath)
+
+	defer mockHttp(t, link, "forward.html")()
+
+	links, err := cs.Process(ctx, link)
+	require.NoError(t, err)
+	require.Len(t, links, 3)
 }
 
 func mockHttp(t *testing.T, link, content string) func() {

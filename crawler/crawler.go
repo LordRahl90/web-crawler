@@ -95,10 +95,13 @@ func (cs *CrawlerService) Save(ctx context.Context, name string, content []byte)
 
 // ValidLink checks if the path is a valid link by checking the prefix
 func (cs *CrawlerService) ValidLink(link string) bool {
-	ok := strings.HasPrefix(link, cs.basePath)
-	if !ok {
+	if ok := strings.HasPrefix(link, "/"); ok {
+		return true
+	}
+	if ok := strings.HasPrefix(link, cs.basePath); !ok {
 		return false
 	}
+
 	newBasePath := cs.basePath
 	if !strings.HasSuffix(newBasePath, "/") {
 		newBasePath += "/"
@@ -157,6 +160,9 @@ func (cs *CrawlerService) Process(ctx context.Context, link string) ([]string, e
 	}
 
 	for _, v := range links {
+		if ok := strings.HasPrefix(v, "/"); ok {
+			v = fmt.Sprintf("%s%s", cs.basePath, v)
+		}
 		if ok := cs.ValidLink(v); ok && !cs.Visited(v) {
 			result = append(result, v)
 		}
