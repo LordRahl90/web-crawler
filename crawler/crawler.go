@@ -82,6 +82,10 @@ func (cs *CrawlerService) ExtractLinks(ctx context.Context, r io.Reader) ([]stri
 // Save saves the page content into the designated path
 func (cs *CrawlerService) Save(ctx context.Context, name string, content []byte) error {
 	fullPath := fmt.Sprintf("%s/%s%s", cs.destPath, name, ext)
+	// prevent name too long errors
+	if len(fullPath) > 256 {
+		fullPath = fullPath[:256]
+	}
 	if _, err := os.Stat(fullPath); os.IsNotExist(err) {
 		if err := os.MkdirAll(filepath.Dir(fullPath), 0700); err != nil {
 			return err
@@ -115,12 +119,16 @@ func (cs *CrawlerService) Visited(link string) bool {
 	if ok {
 		return true
 	}
-	savePath := savePathFromLink(link, cs.basePath)
-	if savePath == "" {
-		return true
+	sp := savePathFromLink(link, cs.basePath)
+	if sp == "" {
+		return false
+	}
+	if sp == "home" {
+		// always return false for home, so we can reload the links and check them all over
+		return false
 	}
 
-	_, err := os.Stat(fmt.Sprintf("%s/%s%s", cs.destPath, savePath, ext))
+	_, err := os.Stat(fmt.Sprintf("%s/%s%s", cs.destPath, sp, ext))
 	return err == nil // return if the file exists or not
 }
 
@@ -129,7 +137,8 @@ func savePathFromLink(link, basePath string) string {
 	if !ok || res == "" {
 		return "home"
 	}
-	return strings.ReplaceAll(strings.TrimPrefix(res, "/"), "/", "_")
+
+	return strings.ReplaceAll(strings.TrimSuffix(strings.TrimPrefix(res, "/"), "/"), "/", "_")
 }
 
 // Process takes a link, processes it and returns unvisited valid links

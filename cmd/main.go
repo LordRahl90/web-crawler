@@ -6,15 +6,13 @@ import (
 	"fmt"
 	"os"
 	"os/signal"
+	"sync"
 	"syscall"
-	"time"
-	"web-crawler/crawler"
 
-	"github.com/rs/zerolog/log"
+	"web-crawler/crawler"
 )
 
 var (
-	ticker            = time.NewTicker(1 * time.Second)
 	destDir, baseLink string
 )
 
@@ -27,46 +25,53 @@ func main() {
 
 	flag.Parse()
 
-	fmt.Printf("\nURL: %s\tDir: %s\n\n", baseLink, destDir)
-
-	linkChan := make(chan string)
+	linkChan := make(chan string, 1)
 	cs := crawler.New(baseLink, destDir)
+	var wg sync.WaitGroup
 
-	ctx := context.Background()
+	ctx, stop := context.WithCancel(context.Background())
 
-	// start 3 worker pools to read as links are being populated into the channel
-	// no need to for sync.Waitgroup and the application will be termiated with ^C
-	// which kills all routines anyways
-	for i := 0; i < 3; i++ {
-		go worker(ctx, fmt.Sprintf("Worker: %d", i), cs, linkChan)
+	// start some worker pools to read as links are being populated into the channel.
+	for i := 0; i < 10; i++ {
+		wg.Add(1)
+		go worker(ctx, &wg, fmt.Sprintf("Worker: %d", i), cs, linkChan)
 	}
 
 	linkChan <- baseLink
 
 	<-sigs
-	fmt.Printf("Application Terminated\n")
+	stop()
+
+	fmt.Println("Waiting for all routines to die")
+	wg.Wait()
+	close(linkChan)
+	fmt.Println("Application Terminated successfully")
 }
 
-func worker(ctx context.Context, name string, cs crawler.Crawler, linkChan chan string) {
+func worker(ctx context.Context, wg *sync.WaitGroup, name string, cs crawler.Crawler, linkChan chan string) {
+	defer func() {
+		fmt.Println(name, "shutting down")
+		wg.Done()
+	}()
+
 	for {
 		select {
 		case <-ctx.Done():
-			fmt.Printf("Processing completed\n")
 			return
 
-		case t := <-ticker.C:
-			fmt.Println(name, "New Ticker: ", t)
-
-		case msg := <-linkChan:
-			fmt.Println("processing starts")
-			res, err := cs.Process(ctx, msg)
+		case v := <-linkChan:
+			res, err := cs.Process(ctx, v)
 			if err != nil {
-				log.Err(err)
+				panic(err)
 			}
-			// populate the linkChannel with the newly returned links
-			for _, v := range res {
-				linkChan <- v
-			}
+			var wg1 sync.WaitGroup
+			wg1.Add(1)
+			go func() {
+				for _, v := range res {
+					linkChan <- v
+				}
+			}()
+			fmt.Println(name, ": Processed Link: ", v)
 		}
 	}
 }
