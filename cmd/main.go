@@ -42,17 +42,14 @@ func main() {
 	<-sigs
 	stop()
 
-	fmt.Println("Waiting for all routines to die")
+	fmt.Println("Waiting for all routines to return")
 	wg.Wait()
 	close(linkChan)
 	fmt.Println("Application Terminated successfully")
 }
 
 func worker(ctx context.Context, wg *sync.WaitGroup, name string, cs crawler.Crawler, linkChan chan string) {
-	defer func() {
-		fmt.Println(name, "shutting down")
-		wg.Done()
-	}()
+	defer wg.Done()
 
 	for {
 		select {
@@ -71,7 +68,6 @@ func worker(ctx context.Context, wg *sync.WaitGroup, name string, cs crawler.Cra
 					linkChan <- v
 				}
 			}()
-			fmt.Println(name, ": Processed Link: ", v)
 		}
 	}
 }
