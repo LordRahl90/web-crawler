@@ -61,8 +61,6 @@ func worker(ctx context.Context, wg *sync.WaitGroup, name string, cs crawler.Cra
 			if err != nil {
 				panic(err)
 			}
-			var wg1 sync.WaitGroup
-			wg1.Add(1)
 			go func() {
 				for _, v := range res {
 					linkChan <- v
