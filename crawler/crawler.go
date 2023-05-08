@@ -117,6 +117,8 @@ func (cs *CrawlerService) ValidLink(link string) bool {
 
 // Visited checks if this path has been visited
 func (cs *CrawlerService) Visited(link string) bool {
+	cs.m.Lock()
+	defer cs.m.Unlock()
 	_, ok := cs.visited[link]
 	if ok {
 		return true
