@@ -9,6 +9,7 @@ import (
 	"os"
 	"path/filepath"
 	"strings"
+	"sync"
 	"time"
 
 	"github.com/PuerkitoBio/goquery"
@@ -26,6 +27,7 @@ var (
 
 // CrawlerService service implementation of the crawler interface
 type CrawlerService struct {
+	m                  *sync.Mutex
 	basePath, destPath string
 	visited            map[string]struct{}
 	linksChan          chan string
@@ -63,9 +65,9 @@ func (cs *CrawlerService) BaseURL() string {
 }
 
 // ExtractLinks extracts links from given web body
-func (cs *CrawlerService) ExtractLinks(ctx context.Context, r io.Reader) ([]string, error) {
+func (cs *CrawlerService) ExtractLinks(ctx context.Context, r []byte) ([]string, error) {
 	links := []string{}
-	doc, err := goquery.NewDocumentFromReader(r)
+	doc, err := goquery.NewDocumentFromReader(bytes.NewBuffer(r))
 	if err != nil {
 		return nil, err
 	}
@@ -152,6 +154,7 @@ func (cs *CrawlerService) Process(ctx context.Context, link string) ([]string, e
 	if err != nil {
 		return nil, err
 	}
+	defer res.Body.Close()
 
 	content, err := io.ReadAll(res.Body)
 	if err != nil {
@@ -163,7 +166,7 @@ func (cs *CrawlerService) Process(ctx context.Context, link string) ([]string, e
 		return nil, err
 	}
 
-	links, err := cs.ExtractLinks(ctx, bytes.NewBuffer(content))
+	links, err := cs.ExtractLinks(ctx, []byte(content))
 	if err != nil {
 		return nil, err
 	}

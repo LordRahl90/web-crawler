@@ -3,6 +3,7 @@ package crawler
 import (
 	"context"
 	"fmt"
+	"io"
 	"net/http"
 	"os"
 	"testing"
@@ -97,7 +98,11 @@ func TestExtractLinks(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, res)
 
-	links, err := cs.ExtractLinks(ctx, res.Body)
+	buf, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.NotNil(t, buf)
+
+	links, err := cs.ExtractLinks(ctx, buf)
 	require.NoError(t, err)
 	assert.Len(t, links, 4)
 }
@@ -116,7 +121,11 @@ func TestExtractLinks_ForwardSlash(t *testing.T) {
 	require.NoError(t, err)
 	assert.NotEmpty(t, res)
 
-	links, err := cs.ExtractLinks(ctx, res.Body)
+	buf, err := io.ReadAll(res.Body)
+	require.NoError(t, err)
+	require.NotNil(t, buf)
+
+	links, err := cs.ExtractLinks(ctx, buf)
 	require.NoError(t, err)
 	assert.Len(t, links, 3)
 }
