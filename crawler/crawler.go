@@ -55,6 +55,8 @@ func (cs *CrawlerService) Crawl(ctx context.Context, link string) (*http.Respons
 		return nil, err
 	}
 
+	cs.m.Lock()
+	defer cs.m.Unlock()
 	cs.visited[link] = struct{}{}
 	return res, nil
 }
