@@ -27,7 +27,7 @@ var (
 
 // CrawlerService service implementation of the crawler interface
 type CrawlerService struct {
-	m                  *sync.Mutex
+	m                  sync.Mutex
 	basePath, destPath string
 	visited            map[string]struct{}
 	linksChan          chan string
